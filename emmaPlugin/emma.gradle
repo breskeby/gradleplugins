@@ -36,7 +36,7 @@ class EmmaPluginConvention{
 
 test {
     // add EMMA related JVM args to our tests
-    jvmArgs "-XX:-UseSplitVerifier", "-Demma.coverage.out.file=$buildDir/tmp/emma/metadata.emma", "-Demma.coverage.out.merge=true"
+    jvmArgs "-XX:-UseSplitVerifier", "-Demma.coverage.out.file=$metaDataFilePath", "-Demma.coverage.out.merge=true"
 
     doFirst {
        println "Instrumenting the classes at " + sourceSets.main.output.classesDir.absolutePath
@@ -46,7 +46,7 @@ test {
        ant.path(id:"run.classpath") {
           pathelement(location:sourceSets.main.output.classesDir.absolutePath)
        }
-       def emmaInstDir = new File(sourceSets.main.output.classesDir.parentFile.parentFile, "tmp/emma/instr")
+       def emmaInstDir = new File(instrDir)
        emmaInstDir.mkdirs()
        println "Creating $emmaInstDir to instrument from " +       sourceSets.main.output.classesDir.absolutePath
        // instruct our compiled classes and store them at $buildDir/tmp/emma/instr
@@ -58,7 +58,7 @@ test {
              }
           }
        }
-       setClasspath(files("$buildDir/tmp/emma/instr") + configurations.emma +    getClasspath())
+       setClasspath(files(instrDir) + configurations.emma +    getClasspath())
     }
 
     // The report should be generated directly after the tests are done.
@@ -69,19 +69,19 @@ test {
        println "Creating test coverage reports for classes " + srcDir
        def emmaInstDir = new File(sourceSets.main.output.classesDir.parentFile.parentFile, "tmp/emma")
        ant.emma(enabled:"true"){
-          new File("$buildDir/reports/emma").mkdirs()
+          new File(reportPath).mkdirs()
           report(sourcepath: srcDir){
              fileset(dir: emmaInstDir.absolutePath){
                 include(name:"**/*.emma")
              }
-             txt(outfile:"$buildDir/reports/emma/coverage.txt")
-             html(outfile:"$buildDir/reports/emma/coverage.html")
-             xml(outfile:"$buildDir/reports/emma/coverage.xml")
+             txt(outfile:"$reportPath/coverage.txt")
+             html(outfile:"$reportPath/coverage.html")
+             xml(outfile:"$reportPath/coverage.xml")
           }
        }
-       println "Test coverage reports available at $buildDir/reports/emma."
-       println "txt: $buildDir/reports/emma/coverage.txt"
-       println "Test $buildDir/reports/emma/coverage.html"
-       println "Test $buildDir/reports/emma/coverage.xml"
+       println "Test coverage reports available at $reportPath."
+       println "txt: $reportPath/coverage.txt"
+       println "Test $reportPath/coverage.html"
+       println "Test $reportPath/coverage.xml"
     }
 }
