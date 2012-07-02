@@ -65,7 +65,7 @@ test {
     // We create three types (txt, html, xml) of reports here. Running your build script now should
     // result in output like that:
     doLast {
-       def srcDir = sourceSets.main.java.srcDirs.toArray().join(',')
+       def srcDir = sourceSets.main.java.srcDirs.join(',')
        println "Creating test coverage reports for classes " + srcDir
        def emmaInstDir = new File(sourceSets.main.output.classesDir.parentFile.parentFile, "tmp/emma")
        ant.emma(enabled:"true"){
