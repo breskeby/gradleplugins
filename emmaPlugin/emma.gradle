@@ -34,7 +34,7 @@ class EmmaPluginConvention{
 	}
 }
 
-test {
+task emma(type: Test) {
     // add EMMA related JVM args to our tests
     jvmArgs "-XX:-UseSplitVerifier", "-Demma.coverage.out.file=$metaDataFilePath", "-Demma.coverage.out.merge=true"
 
