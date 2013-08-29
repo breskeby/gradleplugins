@@ -19,6 +19,7 @@ class EmmaPluginConvention{
 	def tmpDir;
 	def instrDir;
 	def metaDataFilePath;
+	def coverageOutFilePath;
 	
 	def emma(Closure close){
 		close.delegate = this;
@@ -30,58 +31,53 @@ class EmmaPluginConvention{
 		coverageFileName	= "coverage"
 		tmpDir				= "${project.buildDir}/tmp/emma"
 		instrDir			= "${tmpDir}/instr"
-		metaDataFilePath 	= "${tmpDir}/metadata.emma"
+		metaDataFilePath 	= "${tmpDir}/${coverageFileName}.em"
+		coverageOutFilePath = "${tmpDir}/${coverageFileName}.ec"
 	}
 }
 
-test {
-    // add EMMA related JVM args to our tests
-    jvmArgs "-XX:-UseSplitVerifier", "-Demma.coverage.out.file=$buildDir/tmp/emma/metadata.emma", "-Demma.coverage.out.merge=true"
-
-    doFirst {
-       println "Instrumenting the classes at " + sourceSets.main.output.classesDir.absolutePath
-       // define the custom EMMA ant tasks
-       ant.taskdef( resource:"emma_ant.properties", classpath: configurations.emma.asPath)
-
-       ant.path(id:"run.classpath") {
-          pathelement(location:sourceSets.main.output.classesDir.absolutePath)
-       }
-       def emmaInstDir = new File(sourceSets.main.output.classesDir.parentFile.parentFile, "tmp/emma/instr")
-       emmaInstDir.mkdirs()
-       println "Creating $emmaInstDir to instrument from " +       sourceSets.main.output.classesDir.absolutePath
-       // instruct our compiled classes and store them at $buildDir/tmp/emma/instr
-       ant.emma(enabled: 'true', verbosity:'info'){
-          instr(merge:"true", destdir: emmaInstDir.absolutePath, instrpathref:"run.classpath",
-                metadatafile: new File(emmaInstDir, '/metadata.emma').absolutePath) {
-             instrpath {
-             fileset(dir:sourceSets.main.output.classesDir.absolutePath, includes:"**/*.class")
-             }
-          }
-       }
-       setClasspath(files("$buildDir/tmp/emma/instr") + configurations.emma +    getClasspath())
-    }
-
-    // The report should be generated directly after the tests are done.
-    // We create three types (txt, html, xml) of reports here. Running your build script now should
-    // result in output like that:
-    doLast {
-       def srcDir = sourceSets.main.java.srcDirs.toArray()[0]
-       println "Creating test coverage reports for classes " + srcDir
-       def emmaInstDir = new File(sourceSets.main.output.classesDir.parentFile.parentFile, "tmp/emma")
-       ant.emma(enabled:"true"){
-          new File("$buildDir/reports/emma").mkdirs()
-          report(sourcepath: srcDir){
-             fileset(dir: emmaInstDir.absolutePath){
-                include(name:"**/*.emma")
-             }
-             txt(outfile:"$buildDir/reports/emma/coverage.txt")
-             html(outfile:"$buildDir/reports/emma/coverage.html")
-             xml(outfile:"$buildDir/reports/emma/coverage.xml")
-          }
-       }
-       println "Test coverage reports available at $buildDir/reports/emma."
-       println "txt: $buildDir/reports/emma/coverage.txt"
-       println "Test $buildDir/reports/emma/coverage.html"
-       println "Test $buildDir/reports/emma/coverage.xml"
-    }
+test{
+	//setup JVM Arguments for emma coverage - changed to output both files for dumping metrics to tools like Sonar
+	jvmArgs "-XX:-UseSplitVerifier", "-Demma.coverage.out.file=${emmaConvention.coverageOutFilePath}" ,"-Demma.coverage.out.merge=true", "-Demma.metadata.out.file=${emmaConvention.metaDataFilePath}","-Demma.metadata.out.merge=true"
+	
+	//add 
+	doFirst{
+       		logger.lifecycle("Instrumenting the classes at " + sourceSets.main.output.classesDir.absolutePath)
+       		// define the custom EMMA ant tasks
+		ant.taskdef( resource:"emma_ant.properties", classpath: configurations.emma.asPath)
+		ant.path(id:"run.classpath"){
+          		pathelement(location:sourceSets.main.output.classesDir.absolutePath)
+		}
+		ant.emma(verbosity:"${emmaConvention.verbosityLevel}"){
+			instr(merge:"true", destdir:"${emmaConvention.instrDir}", instrpathref:"run.classpath", metadatafile:"${emmaConvention.metaDataFilePath}"){
+				instrpath{
+					fileset(dir:sourceSets.main.output.classesDir.absolutePath, includes:"**/*.class")
+				}
+			}
+		}
+		setClasspath(files("${emmaConvention.instrDir}") + configurations.emma +  getClasspath())
+	}
+	
+	doLast{
+		ant.path(id:"src.path"){
+			sourceSets.main.java.srcDirs.each{
+				pathelement(location:it.absolutePath ) 
+			}
+		}
+		ant.emma(enabled:"true"){
+			
+			report(sourcepathref:"src.path"){
+				fileset(dir:"${emmaConvention.tmpDir}"){
+					include(name:"*.e*")
+				}
+				txt(outfile:"${emmaConvention.reportPath}/${emmaConvention.coverageFileName}.txt")
+				html(outfile:"${emmaConvention.reportPath}/${emmaConvention.coverageFileName}.html")
+				xml(outfile:"${emmaConvention.reportPath}/${emmaConvention.coverageFileName}.xml")
+			}
+		}
+ 		logger.lifecycle("Test coverage reports available at ${emmaConvention.reportPath}.")
+       		logger.lifecycle("txt: ${emmaConvention.reportPath}/${emmaConvention.coverageFileName}.txt")
+       		logger.lifecycle("html: ${emmaConvention.reportPath}/${emmaConvention.coverageFileName}.html")
+       		logger.lifecycle("xml ${emmaConvention.reportPath}/${emmaConvention.coverageFileName}.xml")
+	}
 }
